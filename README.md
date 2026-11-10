@@ -14,7 +14,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/images/hero.png" width="100%" alt="Reserved image space for MusicPlayerDock on the Windows desktop">
+  <img src="docs/images/hero.webp" width="100%" alt="Reserved image space for MusicPlayerDock on the Windows desktop">
 </p>
 
 MusicPlayerDock brings your current track, album artwork and playback controls to the top of your screen. Move your pointer to the top center to reveal it. Leave, and it slips out of the way.
@@ -26,13 +26,13 @@ Control the music already playing in your favorite compatible apps, with a dock 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/images/liquid-glass.png" width="100%" alt="Reserved image space for the Liquid Glass dock">
+      <img src="docs/images/liquid-glass.webp" width="100%" alt="Reserved image space for the Liquid Glass dock">
       <h3>Liquid Glass</h3>
       <p>Live desktop blur, refracted edges and soft reflections. Curved bevels join the glass to the top of your screen, while a black fade and subtle border shading add depth.</p>
       <p>Adjust the blur, edge warping, black edge shade, tint and color separation to find your finish.</p>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/images/black-notch.png" width="100%" alt="Reserved image space for the Black Notch dock">
+      <img src="docs/images/black-notch.webp" width="100%" alt="Reserved image space for the Black Notch dock">
       <h3>Black Notch</h3>
       <p>Pure black, clean typography and a borderless silhouette. Rounded lower corners and curved shoulders connect the dock to the screen edge.</p>
       <p>The default look: focused controls, a monochrome timeline and a quiet presence.</p>
@@ -70,7 +70,7 @@ The dock follows compatible Windows media sessions. Spotify, YouTube, YouTube Mu
 Preview layout and appearance changes before applying them. Preferences are saved between sessions, with **Apply**, **Discard** and **Restore defaults** controls. Liquid Glass also offers capture-rate and resolution adjustments so you can balance detail with resource use.
 
 <p align="center">
-  <img src="docs/images/settings.png" width="100%" alt="Reserved image space for the MusicPlayerDock settings window">
+  <img src="docs/images/settings.webp" width="100%" alt="Reserved image space for the MusicPlayerDock settings window">
 </p>
 
 ## Get started
