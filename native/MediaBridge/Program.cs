@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -14,13 +13,18 @@ class Program {
  static GlobalSystemMediaTransportControlsSessionManager? manager;
  static readonly Dictionary<Session,Entry> entries=new();
  static readonly Dictionary<string,Entry> ids=new();
+ static AudioOutputWatcher? audio;static string? mediaError;static DateTime nextMediaAttempt;
  static bool refreshQueued;static string lastSnapshot="";
  static readonly object gate=new();
  static void Schedule(){lock(gate){if(refreshQueued)return;refreshQueued=true;}Queue.Writer.TryWrite(async()=>{lock(gate)refreshQueued=false;await Refresh();});}
- static async Task Main(){
+ static async Task Main(string[] args){
+  if(args.Contains("--glass-stream")){await DesktopGlass.Run();return;}
+  if(args.Contains("--glass-probe")){DesktopGlass.Probe();return;}
+  if(args.Contains("--glass-pixel-probe")){DesktopGlass.PixelProbe();return;}
+  using var output=new AudioOutputWatcher(Schedule);audio=output;
+  if(args.Contains("--audio-diagnostics")){Console.WriteLine(JsonSerializer.Serialize(output.Read(),Json));return;}
   try {
-   manager=await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
-   manager.SessionsChanged+=(_,_)=>Schedule(); manager.CurrentSessionChanged+=(_,_)=>Schedule();
+   await ConnectMedia();
    Schedule();
    var input=Task.Run(async()=>{string? line;while((line=await Console.In.ReadLineAsync())!=null){try{var c=JsonSerializer.Deserialize<Command>(line,Json);if(c!=null)Queue.Writer.TryWrite(()=>Execute(c));}catch(Exception e){Console.Error.WriteLine(e.Message);}}Queue.Writer.TryComplete();});
    // Slow reconciliation also detects fullscreen changes and players missing timeline events.
@@ -44,18 +48,22 @@ class Program {
    if(p.Thumbnail!=null)try{using var stream=await p.Thumbnail.OpenReadAsync();if(stream.Size>0&&stream.Size<=6*1024*1024){using var reader=new DataReader(stream.GetInputStreamAt(0));await reader.LoadAsync((uint)stream.Size);var bytes=new byte[(int)stream.Size];reader.ReadBytes(bytes);var mime=stream.ContentType;if(mime is "image/jpeg" or "image/png" or "image/webp" or "image/bmp")Artwork=$"data:{mime};base64,{Convert.ToBase64String(bytes)}";}}catch{Artwork=null;}
   }
  }
+ static async Task ConnectMedia(){
+  nextMediaAttempt=DateTime.UtcNow.AddSeconds(30);
+  try{manager=await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();manager.SessionsChanged+=(_,_)=>Schedule();manager.CurrentSessionChanged+=(_,_)=>Schedule();mediaError=null;}catch(Exception e){manager=null;mediaError="Windows media-session access is unavailable. Retrying...";Console.Error.WriteLine(e.Message);}
+ }
  static async Task Refresh(){
-  if(manager==null)return;
-  var sessions=manager.GetSessions().ToArray();
+  if(manager==null&&DateTime.UtcNow>=nextMediaAttempt)await ConnectMedia();
+  var sessions=manager?.GetSessions().ToArray()??Array.Empty<Session>();
   foreach(var s in entries.Keys.Except(sessions).ToArray()){ids.Remove(entries[s].Id);entries[s].Dispose();entries.Remove(s);}
   foreach(var s in sessions)if(!entries.ContainsKey(s)){var e=new Entry(s);entries.Add(s,e);ids.Add(e.Id,e);}
-  var output=new List<object>();string? current=null;var system=manager.GetCurrentSession();
+  var output=new List<object>();string? current=null;var system=manager?.GetCurrentSession();
   foreach(var e in entries.Values)try{
    await e.Read();var p=e.Session.GetPlaybackInfo();var t=e.Session.GetTimelineProperties();var c=p.Controls;
    if(e.Session==system||e.Session.SourceAppUserModelId==system?.SourceAppUserModelId)current=e.Id;
    output.Add(new{id=e.Id,source=e.Session.SourceAppUserModelId,title=e.Title,artist=e.Artist,album=e.Album,artwork=e.Artwork,playing=p.PlaybackStatus==GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing,position=Math.Max(0,(t.Position-t.StartTime).TotalSeconds),duration=Math.Max(0,(t.EndTime-t.StartTime).TotalSeconds),rate=p.PlaybackRate??1,updatedAt=t.LastUpdatedTime.ToUnixTimeMilliseconds(),shuffle=p.IsShuffleActive,repeat=p.AutoRepeatMode?.ToString(),controls=new{play=c.IsPlayEnabled,pause=c.IsPauseEnabled,toggle=c.IsPlayPauseToggleEnabled,next=c.IsNextEnabled,previous=c.IsPreviousEnabled,seek=c.IsPlaybackPositionEnabled,shuffle=c.IsShuffleEnabled,repeat=c.IsRepeatEnabled}});
   }catch(Exception ex){e.Dirty=true;Console.Error.WriteLine(ex.Message);}
-  var json=JsonSerializer.Serialize(new{sessions=output,currentId=current,fullscreen=Native.Fullscreen()},Json);if(json!=lastSnapshot){lastSnapshot=json;Console.WriteLine(json);}
+  var json=JsonSerializer.Serialize(new{sessions=output,currentId=current,connected=manager!=null,error=mediaError,output=audio?.Read(),fullscreen=Native.Fullscreen()},Json);if(json!=lastSnapshot){lastSnapshot=json;Console.WriteLine(json);}
  }
  record Command(string Action,string Id,JsonElement Value);
  static async Task Execute(Command cmd){
@@ -99,7 +107,7 @@ static class Native {
    var m=new MONITORINFO{Size=Marshal.SizeOf<MONITORINFO>()};if(!GetMonitorInfo(MonitorFromWindow(h,2),ref m))return null;
    if(DwmGetWindowAttribute(h,9,out var r,Marshal.SizeOf<RECT>())!=0&&!GetWindowRect(h,out r))return null;
    if(r.Left<=m.Monitor.Left&&r.Top<=m.Monitor.Top&&r.Right>=m.Monitor.Right&&r.Bottom>=m.Monitor.Bottom){
-    // Return physical bounds and scale to Electron DIP using monitor DPI.
+    // Return physical monitor bounds; Electron converts its display center for comparison.
     return new{x=m.Monitor.Left,y=m.Monitor.Top,width=m.Monitor.Right-m.Monitor.Left,height=m.Monitor.Bottom-m.Monitor.Top};
    }return null;
   }finally{SetThreadDpiAwarenessContext(prior);}

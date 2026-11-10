@@ -15,7 +15,7 @@ const {DockView}=loaded.exports;
 const session={id:'test',source:'test',title:'A track',artist:'An artist',album:'',artwork:null,playing:false,position:10,duration:200,rate:1,updatedAt:0,shuffle:null,repeat:null,controls:{play:true,pause:true,toggle:true,next:true,previous:true,seek:true,shuffle:false,repeat:false}};
 
 test('a revealed island has explicit visible motion for each theme with and without media',()=>{
- for(const theme of ['black','dark','light'])for(const active of [false,true]){
+ for(const theme of ['black','dark','light','liquid'])for(const active of [false,true]){
   const base={uiScale:1,settings:{...defaults,theme},media:{sessions:active?[session]:[],currentId:active?'test':null,connected:true},displays:[]};
   const visible=renderToStaticMarkup(React.createElement(DockView,{state:{...base,open:true},previewMode:true}));
   const hidden=renderToStaticMarkup(React.createElement(DockView,{state:{...base,open:false},previewMode:true}));
@@ -24,5 +24,32 @@ test('a revealed island has explicit visible motion for each theme with and with
   assert.ok(visibleSection?.includes('translateY(0) scale(1)')&&visibleSection.includes('opacity:1'),`hover state remains hidden for ${theme}/${active}`);
   assert.ok(hiddenSection?.includes('var(--window-height)')&&hiddenSection.includes('opacity:0'),`hidden island remains visible for ${theme}/${active}`);
   assert.ok(visible.includes('overlay is-open'));
+ }
+});
+test('black notch presents the selected device, playback state, and disabled unsupported actions',()=>{
+ const make=(kind,playing)=>renderToStaticMarkup(React.createElement(DockView,{previewMode:true,state:{open:true,uiScale:1,settings:defaults,media:{sessions:[{...session,playing}],currentId:'test',connected:true,output:{id:'test-output',name:'My output',kind}},displays:[]}}));
+ const speaker=make('speakers',true),headphones=make('headphones',false);
+ assert.ok(speaker.includes('lucide-laptop'));assert.ok(speaker.includes('aria-label="Pause"'));
+ assert.ok(speaker.includes('notch-track-row')&&speaker.includes('notch-progress')&&speaker.includes('notch-controls'));
+ assert.ok(headphones.includes('lucide-headphones'));assert.ok(headphones.includes('aria-label="Play"'));
+ assert.ok(headphones.includes('Windows output: My output. Open sound settings'));
+ assert.ok(headphones.includes('Shuffle unavailable in this player'));
+ assert.ok(!headphones.includes('data-animate="true"'),'settings preview must not animate continuously');
+ const live=(open,reducedMotion=false)=>renderToStaticMarkup(React.createElement(DockView,{state:{open,uiScale:1,settings:{...defaults,reducedMotion},media:{sessions:[{...session,playing:true}],currentId:'test',connected:true},displays:[]}}));
+ assert.ok(live(true).includes('data-animate="true"'),'active visible playback should animate its indicator');
+ assert.ok(!live(false).includes('data-animate="true"'),'a hidden dock must stop playback-indicator animation');
+ assert.ok(!live(true,true).includes('data-animate="true"'),'reduced motion must stop continuous animation');
+});
+
+test('liquid reveal waits for painted live pixels instead of showing a loading background',()=>{
+ for(const active of [false,true])for(const mode of [undefined,'off','paused','starting','live','fallback']){
+  const state={open:true,uiScale:1,settings:{...defaults,theme:'liquid'},capture:mode?{mode,message:''}:undefined,media:{sessions:active?[session]:[],currentId:active?'test':null,connected:true},displays:[]};
+  const markup=renderToStaticMarkup(React.createElement(DockView,{state}));
+  const section=markup.match(/<section\b[^>]*>/)?.[0];const ready=mode==='live'||mode==='fallback';
+  assert.ok(section.includes(ready?'opacity:1':'opacity:0'),`unexpected reveal during ${mode}/${active}`);
+  assert.ok(section.includes(`aria-hidden="${!ready}"`));
+  assert.equal(markup.includes('overlay is-open'),ready,'handle stays visible while live material is preparing');
+  const closed=renderToStaticMarkup(React.createElement(DockView,{state:{...state,open:false}}));
+  assert.ok(closed.match(/<section\b[^>]*>/)?.[0].includes('opacity:0'));
  }
 });
