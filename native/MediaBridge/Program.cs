@@ -18,6 +18,9 @@ class Program {
  static readonly object gate=new();
  static void Schedule(){lock(gate){if(refreshQueued)return;refreshQueued=true;}Queue.Writer.TryWrite(async()=>{lock(gate)refreshQueued=false;await Refresh();});}
  static async Task Main(string[] args){
+  if(args.Contains("--glass-stream")){await DesktopGlass.Run();return;}
+  if(args.Contains("--glass-probe")){DesktopGlass.Probe();return;}
+  if(args.Contains("--glass-pixel-probe")){DesktopGlass.PixelProbe();return;}
   using var output=new AudioOutputWatcher(Schedule);audio=output;
   if(args.Contains("--audio-diagnostics")){Console.WriteLine(JsonSerializer.Serialize(output.Read(),Json));return;}
   try {

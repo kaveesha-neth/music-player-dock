@@ -6,7 +6,7 @@ const {version}=JSON.parse(await fs.readFile('package.json','utf8'));
 const target=path.resolve(`release/MusicPlayerDock-${version}-win-x64`);
 await fs.mkdir(target,{recursive:true});
 await fs.cp(path.dirname(await runtime()),target,{recursive:true,force:true});
-await fs.copyFile(path.join(target,'electron.exe'),path.join(target,'MusicPlayerDock.exe'));await fs.unlink(path.join(target,'electron.exe'));
+await fs.rename(path.join(target,'electron.exe'),path.join(target,'MusicPlayerDock.exe'));
 execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-File',path.resolve('scripts/set-icon.ps1'),'-ExecutablePath',path.join(target,'MusicPlayerDock.exe'),'-IconPath',path.resolve('assests/MusicPlayerDock-logo.ico')],{stdio:'inherit',windowsHide:true});
 await fs.rm(path.join(target,'resources/default_app.asar'),{force:true});
 const app=path.join(target,'resources/app');await fs.mkdir(app,{recursive:true});

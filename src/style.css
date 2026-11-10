@@ -33,16 +33,16 @@ html[data-view=settings] #root{overflow-x:hidden;overflow-y:auto;scrollbar-gutte
 
 /* A single opaque silhouette joins the physical top edge. No glass layers in this theme. */
 .overlay[data-theme=black]{--panel:0,0,0;--fg:#fff;--muted:#a9afb6;--accent:#a8ddcd;--lg-foreground:#fff;--lg-glass:#2828289e;--lg-edge:#ffffff14;color:#fff;color-scheme:dark}
-.overlay[data-theme=black] .island{left:0;top:0;width:var(--window-width);height:calc(var(--dock-height) + 12px);border-radius:0;transform:translateY(calc(-1 * var(--window-height)));transition-timing-function:cubic-bezier(.22,.85,.24,1),ease}
-.overlay[data-theme=black].is-open .island{transform:translateY(0)}
-.overlay[data-theme=black] .island.idle{left:calc(var(--idle-x) - 12px);width:calc(var(--idle-width) + 24px);height:calc(var(--idle-height) + 12px)}
+.overlay:is([data-theme=black],[data-theme=liquid]) .island{left:0;top:0;width:var(--window-width);height:calc(var(--dock-height) + 12px);border-radius:0;transform:translateY(calc(-1 * var(--window-height)));transition-timing-function:cubic-bezier(.22,.85,.24,1),ease}
+.overlay:is([data-theme=black],[data-theme=liquid]).is-open .island{transform:translateY(0)}
+.overlay:is([data-theme=black],[data-theme=liquid]) .island.idle{left:calc(var(--idle-x) - 12px);width:calc(var(--idle-width) + 24px);height:calc(var(--idle-height) + 12px)}
 .notch-surface{position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none}
 .overlay[data-theme=black] .shell{position:absolute;left:12px;top:12px;width:calc(100% - 24px);height:calc(100% - 12px);display:grid;grid-template-columns:var(--art-column) minmax(0,1fr);overflow:hidden;border-radius:var(--corner-radius);border:0;background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 .overlay[data-theme=black] .idle .shell{display:block}
 .overlay[data-theme=black] .art-shine{display:none}
 .overlay[data-theme=black] .primary-play{background:#fff;background-image:none;box-shadow:none;border:0;backdrop-filter:none;-webkit-backdrop-filter:none}
-.overlay[data-theme=black] .handle{top:0;width:84px;height:8px;left:calc(50% - 42px);border-radius:0;background:none;box-shadow:none}
-.overlay[data-theme=black] .handle>span{display:none}
+.overlay:is([data-theme=black],[data-theme=liquid]) .handle{top:0;width:84px;height:8px;left:calc(50% - 42px);border-radius:0;background:none;box-shadow:none}
+.overlay:is([data-theme=black],[data-theme=liquid]) .handle>span{display:none}
 .handle-notch{display:block;width:84px;height:8px}
 
 .album{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px;line-height:16px;margin-top:2px}
@@ -63,3 +63,58 @@ html[data-view=settings] #root{scrollbar-color:#42464e #101216;scrollbar-width:t
 .overlay[data-theme=dark]{--panel:22,25,28;--fg:#f4f6f8;--muted:#a9afb6;--accent:#a8ddcd;color:var(--fg)}
 
 .brand-logo{display:block;width:100%;height:100%;object-fit:contain}.app-mark .brand-logo{width:42px;height:42px}.idle-icon .brand-logo{width:34px;height:34px}.record .brand-logo{width:52px;height:52px;object-fit:contain;border-radius:0}.app-mark:has(.brand-logo),.idle-icon:has(.brand-logo){background:transparent;border:0;box-shadow:none}
+
+/* Reference Black Notch: independent track, timeline and transport rows. */
+.overlay:is([data-theme=black],[data-theme=liquid]) .shell{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:var(--top-row-height) var(--progress-row-height) var(--control-row-height);gap:var(--row-gap);padding:var(--dock-padding);align-content:center}
+.overlay:is([data-theme=black],[data-theme=liquid]) .idle .shell{display:block;padding:0}
+.notch-track-row{display:grid;grid-template-columns:var(--art-size) minmax(0,1fr) 24px;align-items:center;column-gap:16px;min-height:0;min-width:0}
+.notch-track-row.without-art{grid-template-columns:minmax(0,1fr) 24px}
+.notch-track-row .artwork{margin:0;width:var(--art-size);height:var(--art-size);border-radius:13px;animation:none}
+.notch-track-row .metadata{min-width:0;overflow:hidden;animation:none}.notch-track-row .metadata h1{font-weight:600;letter-spacing:-.35px}.notch-track-row .metadata p{font-size:var(--artist-size);line-height:1.35;color:#a8a8ad;margin-top:5px}.notch-track-row .metadata .album{color:#77777e;margin-top:3px}
+.notch-progress{display:grid;grid-template-columns:var(--notch-progress-columns);gap:12px;align-items:center;margin:0;min-width:0}.notch-progress .time{font-size:12px;color:#a8a8ad;font-variant-numeric:tabular-nums}.notch-progress .time:last-child{text-align:right}.notch-progress input{min-width:0;--track-empty:#ffffff23}
+.progress input::-webkit-slider-runnable-track{transition:background-size .2s linear}.progress input::-moz-range-track{transition:background-size .2s linear}
+.progress input[data-seeking=true]::-webkit-slider-runnable-track{transition:none}.progress input[data-seeking=true]::-moz-range-track{transition:none}
+.notch-controls{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:center;min-width:0;min-height:0}
+.overlay:is([data-theme=black],[data-theme=liquid]) .notch-controls button{position:relative;display:inline-flex;align-items:center;justify-content:center;justify-self:center;width:40px;height:40px;border-radius:13px;padding:0;color:#b0b0b5;transition:background-color .22s,transform .38s cubic-bezier(.22,1,.36,1),color .28s,opacity .28s;-webkit-tap-highlight-color:transparent}
+.overlay:is([data-theme=black],[data-theme=liquid]) .notch-controls button:not(:disabled):hover{background-color:#ffffff0b;transform:translateY(-1px) scale(1.06);color:#fff}
+.overlay:is([data-theme=black],[data-theme=liquid]) .notch-controls button:not(:disabled):active{transform:scale(.91);background-color:#ffffff14}
+.notch-controls button:focus-visible{outline-color:#fff}.notch-controls button:disabled{opacity:.24}.notch-controls svg{display:block;width:24px;height:24px;stroke-width:1.8}
+.overlay:is([data-theme=black],[data-theme=liquid]) .notch-controls .notch-skip{width:48px;height:48px;color:#fafafa}.notch-controls .notch-skip svg{width:31px;height:31px;stroke-width:1.25}
+.overlay:is([data-theme=black],[data-theme=liquid]) .notch-controls .primary-play{width:var(--button-size);height:var(--button-size);color:#fff;background:transparent;background-image:none;box-shadow:none;border:0}
+.overlay:is([data-theme=black],[data-theme=liquid]) .notch-controls .primary-play:hover{background-color:#ffffff0b!important}.notch-controls .primary-play .liquid-swap{width:calc(var(--button-size) * .68);height:calc(var(--button-size) * .68)}
+.notch-controls .primary-play svg{width:100%;height:100%;stroke-width:1.4}
+.notch-controls .notch-edge-actions{display:flex;align-items:center;gap:2px;justify-self:start;min-width:0}.overlay:is([data-theme=black],[data-theme=liquid]) .notch-edge-actions button{width:32px;height:36px}.overlay:is([data-theme=black],[data-theme=liquid]) .notch-edge-actions .notch-repeat{width:28px}.notch-repeat svg{width:17px;height:17px}.notch-controls .device-control{justify-self:end!important}
+.control-state-dot{position:absolute;bottom:0;left:calc(50% - 1.5px);width:3px;height:3px;border-radius:50%;background:#fff;opacity:0;transform:scale(.4);transition:opacity .3s,transform .4s cubic-bezier(.22,1,.36,1)}.notch-controls .active{color:#fff!important}.notch-controls .active .control-state-dot{opacity:1;transform:scale(1)}
+.playback-activity{display:flex;align-items:center;justify-content:center;gap:2px;height:30px;color:#6c6c73}.playback-activity span{display:block;flex:0 0 2.5px;height:24px;border-radius:3px;background:currentColor;transform:scaleY(.18);transition:transform .45s cubic-bezier(.22,1,.36,1),background-color .35s}
+.playback-activity.playing{color:#c39b87}.playback-activity span:nth-child(1){--bar-height:.4;--bar-low:.24}.playback-activity span:nth-child(2){--bar-height:.72;--bar-low:.42}.playback-activity span:nth-child(3){--bar-height:1;--bar-low:.56}.playback-activity span:nth-child(4){--bar-height:.8;--bar-low:.34}.playback-activity span:nth-child(5){--bar-height:.5;--bar-low:.2}.playback-activity.playing span{transform:scaleY(var(--bar-height))}.playback-activity[data-animate=true] span{animation:activity-pulse 1.1s ease-in-out infinite alternate}.playback-activity[data-animate=true] span:nth-child(2){animation-duration:.85s;animation-delay:-.25s}.playback-activity[data-animate=true] span:nth-child(3){animation-duration:1.25s;animation-delay:-.5s}.playback-activity[data-animate=true] span:nth-child(4){animation-duration:.94s;animation-delay:-.35s}.playback-activity[data-animate=true] span:nth-child(5){animation-duration:1.3s;animation-delay:-.2s}
+@keyframes activity-pulse{from{transform:scaleY(var(--bar-low))}to{transform:scaleY(var(--bar-height))}}
+.liquid-swap{display:inline-grid;vertical-align:middle;position:relative;min-width:0}.liquid-layer{grid-area:1/1;min-width:0;opacity:1;transform:none;filter:none;transition:opacity .32s ease,transform .42s cubic-bezier(.22,1,.36,1),filter .36s ease;pointer-events:none}.liquid-layer[data-phase=enter]{opacity:0;transform:translateY(4px) scale(.8);filter:blur(2px)}.liquid-layer[data-phase=exit]{opacity:0;transform:translateY(-3px) scale(1.14);filter:blur(2px)}.liquid-swap[data-motion=off]>.liquid-layer{transition:none}
+.track-transition{display:grid;width:100%}.track-transition>.liquid-layer[data-phase=enter]{transform:translateY(7px) scale(.985)}.track-transition>.liquid-layer[data-phase=exit]{transform:translateY(-6px) scale(1.01)}.art-transition{display:grid;height:100%;width:100%}.art-transition>.liquid-layer{height:100%;width:100%;overflow:hidden}.art-transition>.liquid-layer[data-phase=enter]{transform:scale(1.06);filter:blur(2px)}.art-transition>.liquid-layer[data-phase=exit]{transform:scale(.97);filter:blur(1px)}
+.notch-controls .liquid-swap{display:inline-grid}.notch-controls .liquid-layer{display:grid;place-items:center}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(prefers-reduced-motion:reduce){.playback-activity span{animation:none!important}.liquid-layer{transition:none!important}}
+
+.overlay:is([data-theme=black],[data-theme=liquid]) :is(button,input):focus-visible{outline-color:#fff}
+
+/* Experimental real-desktop lens. The canvas, not CSS backdrop blur, supplies its scene. */
+.overlay[data-theme=liquid]{--panel:20,24,31;--fg:#f8f9fc;--muted:#d2d6df;--accent:#f0f4f7;color:#f8f9fc;color-scheme:dark}
+.overlay[data-theme=liquid] .shell{position:absolute;left:12px;top:12px;width:calc(100% - 24px);height:calc(100% - 12px);border-radius:0 0 var(--corner-radius) var(--corner-radius);overflow:hidden;border:0;background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.overlay[data-theme=liquid] .idle .shell{display:block;padding:0}
+.overlay[data-theme=liquid] .notch-track-row .metadata p{color:#d6dbe3}.overlay[data-theme=liquid] .metadata,.overlay[data-theme=liquid] .notch-progress .time{text-shadow:0 1px 5px #000b,0 1px 12px #0006}
+.overlay[data-theme=liquid] .notch-track-row .metadata .album{color:#c3c9d3}.overlay[data-theme=liquid] .notch-progress .time{color:#e3e6ec}
+.overlay[data-theme=liquid] .playback-activity.playing{color:#e2e5eb}.overlay[data-theme=liquid] .notch-controls .primary-play.lg-glass{width:calc(var(--button-size) + 16px);height:calc(var(--button-size) + 16px);border-radius:50%;--lg-rim-shine:0;--lg-edge:transparent;background-color:#171b203d;background-image:radial-gradient(ellipse at 50% 35%,#ffffff08,transparent 65%),radial-gradient(closest-side,#0000 65%,#00000010 100%);box-shadow:0 2px 12px #0002;backdrop-filter:blur(2px) var(--lg-filter,saturate(1.15));-webkit-backdrop-filter:blur(2px) var(--lg-filter,saturate(1.15))}
+.overlay[data-theme=liquid] .notch-controls .primary-play:hover{background-color:#ffffff16!important}.overlay[data-theme=liquid] .notch-controls .primary-play .liquid-swap{width:calc(var(--button-size) * .48);height:calc(var(--button-size) * .48)}
+.overlay[data-theme=liquid] .notch-controls .notch-skip{filter:drop-shadow(0 1px 3px #0008)}
+.desktop-glass{position:absolute;inset:0;z-index:0;overflow:hidden;border-radius:inherit;pointer-events:none}.desktop-glass canvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .18s ease}.desktop-glass-fallback{position:absolute;inset:0;background:linear-gradient(135deg,#ffffff18,transparent 48%,#a8b8cf12),#1c222ef5;box-shadow:inset 0 0 0 1px #ffffff29;border-radius:inherit;opacity:1;transition:opacity .18s ease}.desktop-glass.phase-live canvas,.desktop-glass.phase-preview canvas{opacity:1}.desktop-glass.phase-live .desktop-glass-fallback,.desktop-glass.phase-preview .desktop-glass-fallback{opacity:0}
+.glass-fallback-label{position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:9px;line-height:12px;color:#e1d3be;z-index:2;opacity:.85}.capture-status{border:1px solid #ffffff14;background:#ffffff04;border-radius:13px;padding:16px;margin:0 0 26px}.capture-status strong{font-size:12px;font-weight:500}.capture-status p{font-size:11px;line-height:1.6;color:#929eaf;margin:7px 0}.capture-status .secondary-action{margin-top:5px}.swatch-liquid{background:radial-gradient(ellipse at 20% 20%,#fff8,transparent 40%),linear-gradient(130deg,#8f99a8,#20252e 50%,#ccd5e1);border:1px solid #e7edfb70;box-shadow:inset 1px 1px 2px #fffa}
+
+.overlay[data-theme=liquid] .notch-controls button{color:#edf0f6;text-shadow:0 1px 5px #000b}.overlay[data-theme=liquid] .device-control,.overlay[data-theme=liquid] .notch-edge-actions{filter:drop-shadow(0 1px 3px #0008)}
+
+/* Attached glass and its opaque-to-clear top shade share one clipped silhouette. */
+.liquid-top-shade{position:absolute;inset:0 0 auto;height:var(--title-fade-end);background:linear-gradient(180deg,#000 0px,#000 5px,#000c 30%,#0006 62%,#0000 100%);pointer-events:none;z-index:1}
+.overlay[data-theme=liquid] .idle .liquid-top-shade{height:52px}
+.overlay[data-theme=liquid] .desktop-glass-fallback{box-shadow:none;border-radius:0}
+
+/* Loading waits offscreen; only genuine capture failure uses fallback material. */
+.desktop-glass.phase-starting .desktop-glass-fallback{opacity:0}
+.desktop-glass.phase-live canvas,.desktop-glass.phase-preview canvas{transition:none}
