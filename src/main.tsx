@@ -5,13 +5,14 @@ import {Preferences} from './Preferences';
 import type {DockState,Settings} from './shared';
 import {defaults} from '../electron/policy.mjs';
 import './style.css';
+import {connectDockState} from './state-subscription.mjs';
 const preview=new URLSearchParams(location.search).get('preview')==='1';
 const initial:DockState={open:preview,uiScale:1,settings:defaults as Settings,media:{sessions:[],currentId:null,connected:false},displays:[]};
 // Set scroll behavior before the first paint; preferences keep their own scroll area.
 document.documentElement.dataset.view=location.hash==='#settings'?'settings':'dock';
 if(preview&&!window.dock){initial.media.sessions=[{id:'preview',source:'Design preview',title:'Midnight Echoes',artist:'Luna Ray',album:'After the rain',artwork:null,playing:false,position:92,duration:227,rate:1,updatedAt:Date.now(),shuffle:null,repeat:null,controls:{play:false,pause:false,toggle:false,next:false,previous:false,seek:false,shuffle:false,repeat:false}}];initial.media.currentId='preview'}
 
-function useDock(){const [state,setState]=useState(initial);useEffect(()=>{let live=true;const off=window.dock?.subscribe(setState);window.dock?.getState().then(s=>{if(live)setState(s)});return()=>{live=false;off?.()}},[]);return [state,setState] as const}
+function useDock(){const [state,setState]=useState(initial);useEffect(()=>connectDockState(window.dock,setState),[]);return [state,setState] as const}
 
 function App(){
  const [state,setState]=useDock();const settingsPage=location.hash==='#settings';

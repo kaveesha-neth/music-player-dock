@@ -1,5 +1,5 @@
 {
-  "name": "music-player-dock", "version": "1.2.5", "private": true,
+  "name": "music-player-dock", "version": "1.2.6", "private": true,
   "description": "A quiet Windows music island", "author": "MusicPlayerDock", "license": "MIT",
   "main": "dist-electron/main.cjs",
   "scripts": {
