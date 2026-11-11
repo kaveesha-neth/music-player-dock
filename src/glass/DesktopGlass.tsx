@@ -17,9 +17,10 @@ export function DesktopGlass({state,visible,preview=false}:{state:DockState;visi
  const wasOpen=useRef(visible);
  const [phase,setPhase]=useState<'starting'|'live'|'fallback'|'preview'>('starting'),[detail,setDetail]=useState(''),[restart,setRestart]=useState(0);
  settings.current=state.settings;
+ const captureStatus=useRef(state.capture);captureStatus.current=state.capture;
  useEffect(()=>{
   const element=canvas.current!;let disposed=false,lastGeneration=0;
-  const failure=(message:string)=>{if(disposed)return;setPhase('fallback');setDetail(message);if(!preview)window.dock?.glassFeedback('failed',message)};
+  const failure=(message:string)=>{if(disposed)return;setPhase('fallback');setDetail(message);if(!preview)window.dock?.glassFeedback('failed',message,undefined,state.capture?.revision??0)};
   try{engine.current=new GlassRenderer(element)}catch(e){failure(e instanceof Error?e.message:'GPU glass unavailable');return;}
   setPhase('starting');
   const draw=()=>{try{return engine.current?.draw(settings.current)}catch(e){failure(e instanceof Error?e.message:'Glass rendering failed');return false}};
@@ -31,9 +32,9 @@ export function DesktopGlass({state,visible,preview=false}:{state:DockState;visi
   }else if(window.dock){
    unsubscribe=window.dock.subscribeGlass(frame=>{
     if(disposed)return;
-    try{engine.current?.upload(frame);if(draw()){setPhase('live');setDetail('');if(lastGeneration!==frame.generation){lastGeneration=frame.generation;window.dock?.glassFeedback('painted','',frame.generation)}}}catch(e){failure(e instanceof Error?e.message:'Desktop glass unavailable')}
+    try{engine.current?.upload(frame);if(draw()){setPhase('live');setDetail('');if(lastGeneration!==frame.generation||captureStatus.current?.mode!=='live'){lastGeneration=frame.generation;window.dock?.glassFeedback('painted','',frame.generation,state.capture?.revision??0)}}}catch(e){failure(e instanceof Error?e.message:'Desktop glass unavailable')}
    });
-   window.dock.glassFeedback('ready');
+   window.dock.glassFeedback('ready','',undefined,state.capture?.revision??0);
   }else failure('Live desktop capture is available only in the Windows app');
   const resize=new ResizeObserver(()=>{
    if(preview){try{engine.current?.upload(illustratedFrame(element));draw()}catch(e){failure(e instanceof Error?e.message:'Material preview unavailable')}}else draw();

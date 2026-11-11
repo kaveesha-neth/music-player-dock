@@ -3,6 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import {Bridge} from './bridge';
 import {GlassCapture} from './glass-capture';
+import {prepareOverlayWindow,setOverlayPassthrough} from './window-material.mjs';
 import {defaults,validate,Visibility,within} from './policy.mjs';
 import {geometry,fitWindow,dockRect,hitDock} from './geometry.mjs';
 import type {Settings,Snapshot,Command,DockState,GlassStatus} from '../src/shared';
@@ -12,6 +13,7 @@ let settings=validate(defaults) as Settings;
 let media:Snapshot={sessions:[],currentId:null,connected:false};
 let selected='',open=false,quitting=false,configPath='',uiScale=1,interactingUntil=0;
 const visibility=new Visibility();
+let rendererRecovery:NodeJS.Timeout|undefined;let lastRendererRecovery=0;
 let poll:NodeJS.Timeout;let ignoring=true;let glass:GlassCapture|undefined;let rendererLoaded=false;let captureSuspended=false;let screenLocked=false,powerSuspended=false;let protectedMaterial=false;
 const dev=process.env.DOCK_DEV==='1';
 const diagnostics=process.argv.includes('--diagnostics');
@@ -29,13 +31,15 @@ function glassStatusChanged(status:GlassStatus){
  }
  send();
 }
-function send(){for(const w of [dock,preferences])if(w&&!w.isDestroyed())w.webContents.send('state',snapshot())}
+function sendToWindow(window:BrowserWindow|undefined,event:string,value:unknown){if(!window||window.isDestroyed()||window.webContents.isDestroyed()||(window===dock&&!rendererLoaded)||window.webContents.isCrashed())return;try{window.webContents.send(event,value)}catch{/* A recovering renderer can temporarily have no main frame. */}}
+function send(){const state=snapshot();for(const window of [dock,preferences])sendToWindow(window,'state',state)}
 function display(){return screen.getAllDisplays().find(d=>String(d.id)===settings.monitor)||screen.getPrimaryDisplay()}
-function refreshCaptureExclusion(){
+function refreshCaptureExclusion(force=true){
  if(settings.theme!=='liquid'||dock.isDestroyed())return;
  // Force the owning native window to reapply affinity after show/recreation.
- dock.setContentProtection(false);dock.setContentProtection(true);protectedMaterial=true;
+ if(force)dock.setContentProtection(false);dock.setContentProtection(true);protectedMaterial=true;
 }
+function preserveCaptureExclusion(){refreshCaptureExclusion(false)}
 function layout(){
  const d=display(),fit=fitWindow(settings.scale,d.workArea,settings);uiScale=fit.scale;
  dock.setContentBounds({x:Math.round(d.bounds.x+(d.bounds.width-fit.width)/2),y:d.bounds.y,width:fit.width,height:fit.height});
@@ -48,6 +52,14 @@ function showSettings(){
  const area=screen.getPrimaryDisplay().workArea;const prefWidth=Math.min(780,area.width-40),prefHeight=Math.min(860,area.height-40);
  preferences=new BrowserWindow({icon:iconPath(),title:'MusicPlayerDock - Settings',width:prefWidth,height:prefHeight,minWidth:Math.min(600,prefWidth),minHeight:Math.min(600,prefHeight),backgroundColor:'#101216',autoHideMenuBar:true,webPreferences:{preload,partition:'dock-preferences',contextIsolation:true,nodeIntegration:false,sandbox:true}});
  secure(preferences);load(preferences,'#settings');preferences.on('closed',()=>{preferences=undefined});
+}
+function recoverDockRenderer(reason:string,force=false){
+ if(quitting||dock.isDestroyed()||rendererRecovery)return;
+ const delay=force?300:Math.max(300,30000-(Date.now()-lastRendererRecovery));
+ rendererLoaded=false;glass?.resetRenderer(reason);
+ visibility.state='hidden';visibility.deadline=0;visibility.transition=0;open=false;interactingUntil=0;
+ try{setOverlayPassthrough(dock,true,settings.theme==='liquid'?preserveCaptureExclusion:undefined);ignoring=true}catch{}
+ rendererRecovery=setTimeout(()=>{rendererRecovery=undefined;if(!quitting&&!dock.isDestroyed()){lastRendererRecovery=Date.now();dock.webContents.reload()}},delay);
 }
 function tick(){
  const d=display(),p=screen.getCursorScreenPoint(),b=dock.getContentBounds();
@@ -65,7 +77,7 @@ function tick(){
  const next=phase==='expanded'||phase==='revealing';
  if(next!==open){open=next;send()}
  const materialReady=settings.theme!=='liquid'||glass?.status.mode==='live'||glass?.status.mode==='fallback';
- const ignore=!(open&&materialReady&&(hit||Date.now()<interactingUntil));if(ignore!==ignoring){dock.setIgnoreMouseEvents(ignore);ignoring=ignore}
+ const ignore=!(open&&materialReady&&(hit||Date.now()<interactingUntil));if(ignore!==ignoring){try{setOverlayPassthrough(dock,ignore,settings.theme==='liquid'?preserveCaptureExclusion:undefined)}catch{glass?.fail('Windows could not refresh capture protection after changing mouse input')}finally{ignoring=ignore}}
  const visible=!blocked&&(phase!=='hidden'||settings.collapsed==='handle');
  if(visible&&!dock.isVisible()){dock.showInactive();try{refreshCaptureExclusion()}catch{glass?.fail('Windows could not refresh capture exclusion after showing the dock')}}else if(!visible&&dock.isVisible())dock.hide();
  if(previous!==phase&&phase==='hidden')send();
@@ -78,33 +90,35 @@ if(!app.requestSingleInstanceLock())app.quit();else {
  app.whenReady().then(()=>{
   app.setAppUserModelId('com.musicplayerdock.app');configPath=path.join(app.getPath('userData'),'settings.json');
   try{settings=validate(JSON.parse(fs.readFileSync(configPath,'utf8'))) as Settings}catch{}
+  if(diagnostics)settings={...settings,autoHide:false,startWithWindows:false};
   if(app.isPackaged&&settings.startWithWindows){try{app.setLoginItemSettings({openAtLogin:true,path:process.env.PORTABLE_EXECUTABLE_FILE||app.getPath('exe')})}catch{}}
-  dock=new BrowserWindow({icon:iconPath(),show:false,width:geometry.windowWidth,height:geometry.windowHeight,frame:false,thickFrame:false,useContentSize:true,transparent:true,resizable:false,hasShadow:false,skipTaskbar:true,focusable:false,alwaysOnTop:true,webPreferences:{preload,partition:'dock-overlay',contextIsolation:true,nodeIntegration:false,sandbox:true}});
-  glass=new GlassCapture(companionPath(),frame=>{if(!dock.isDestroyed())dock.webContents.send('glass:frame',frame)},glassStatusChanged,undefined,refreshCaptureExclusion);
+  dock=new BrowserWindow({icon:iconPath(),show:false,width:geometry.windowWidth,height:geometry.windowHeight,frame:false,thickFrame:false,useContentSize:true,transparent:true,resizable:false,hasShadow:false,skipTaskbar:true,focusable:false,alwaysOnTop:true,webPreferences:{preload,partition:'dock-overlay',contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false}});
+  glass=new GlassCapture(companionPath(),frame=>sendToWindow(dock,'glass:frame',frame),glassStatusChanged,undefined,refreshCaptureExclusion);
   dock.webContents.on('did-start-loading',()=>{rendererLoaded=false;glass?.resetRenderer()});
   dock.webContents.on('did-finish-load',()=>{rendererLoaded=true;dock.webContents.setZoomFactor(1);void dock.webContents.setVisualZoomLevelLimits(1,1);layout();send()});
   dock.webContents.on('zoom-changed',event=>{event.preventDefault();dock.webContents.setZoomFactor(1)});
-  dock.setIgnoreMouseEvents(true);secure(dock);layout();load(dock);dock.on('close',e=>{if(!quitting){e.preventDefault();dock.hide()}});
+  prepareOverlayWindow(dock);secure(dock);layout();load(dock);dock.on('close',e=>{if(!quitting){e.preventDefault();dock.hide()}});
   const runtimeErrors:string[]=[];
-  dock.webContents.on('render-process-gone',(_e,details)=>{runtimeErrors.push(details.reason);glass?.fail('The GPU renderer stopped')});
+  dock.webContents.on('render-process-gone',(_e,details)=>{runtimeErrors.push(details.reason);recoverDockRenderer('Recovering the stopped dock renderer')});
+  dock.on('unresponsive',()=>recoverDockRenderer('Recovering an unresponsive dock'));
   dock.webContents.on('did-fail-load',(_e,code,description)=>runtimeErrors.push(`${code}: ${description}`));
   dock.webContents.on('console-message',(_e,_level,message)=>{if(_level>=3)runtimeErrors.push(message)});
-  dock.once('ready-to-show',()=>{tick();send();if(diagnostics)setTimeout(()=>{fs.mkdirSync(path.resolve('.cache'),{recursive:true});fs.writeFileSync(path.resolve('.cache/desktop-diagnostics.json'),JSON.stringify({loaded:true,bounds:dock.getBounds(),visible:dock.isVisible(),focusable:dock.isFocusable(),focused:dock.isFocused(),state:visibility.state,open,ignoring,mediaConnected:media.connected,mediaError:media.error,rendererErrors:runtimeErrors},null,2));app.quit()},6000)});
-  tray=new Tray(nativeImage.createFromPath(iconPath()));tray.setToolTip('MusicPlayerDock');tray.setContextMenu(Menu.buildFromTemplate([{label:'MusicPlayerDock',enabled:false},{label:'Settings...',click:showSettings},{label:'Reveal music island',click:()=>{visibility.state='revealing';visibility.transition=Date.now()+420;visibility.deadline=Date.now()+3000;open=true;send();dock.showInactive();try{refreshCaptureExclusion()}catch{glass?.fail('Windows could not refresh capture exclusion after showing the dock')}}},{type:'separator'},{label:'Quit',click:()=>app.quit()}]));tray.on('double-click',showSettings);
+  dock.once('ready-to-show',()=>{tick();send();if(diagnostics)setTimeout(()=>{fs.mkdirSync(path.resolve('.cache'),{recursive:true});fs.writeFileSync(path.resolve('.cache/desktop-diagnostics.json'),JSON.stringify({loaded:true,bounds:dock.getBounds(),visible:dock.isVisible(),focusable:dock.isFocusable(),focused:dock.isFocused(),state:visibility.state,open,ignoring,mediaConnected:media.connected,mediaError:media.error,capture:glass?.status,protectedMaterial,rendererLoaded,rendererErrors:runtimeErrors},null,2));app.quit()},6000)});
+  tray=new Tray(nativeImage.createFromPath(iconPath()));tray.setToolTip('MusicPlayerDock');tray.setContextMenu(Menu.buildFromTemplate([{label:'MusicPlayerDock',enabled:false},{label:'Settings...',click:showSettings},{label:'Recover dock',click:()=>recoverDockRenderer('Recovering the dock from the tray',true)},{label:'Reveal music island',click:()=>{visibility.state='revealing';visibility.transition=Date.now()+420;visibility.deadline=Date.now()+3000;open=true;send();dock.showInactive();try{refreshCaptureExclusion()}catch{glass?.fail('Windows could not refresh capture exclusion after showing the dock')}}},{type:'separator'},{label:'Quit',click:()=>app.quit()}]));tray.on('double-click',showSettings);
   bridge=new Bridge(companionPath(),s=>{media=s;if(!s.sessions.some(x=>x.id===selected))selected='';send()});bridge.start();
   const refreshCapturePower=()=>{const was=captureSuspended;captureSuspended=screenLocked||powerSuspended;if(captureSuspended)glass?.stop();else if(was&&settings.theme==='liquid')glass?.retry();tick()};
   powerMonitor.on('lock-screen',()=>{screenLocked=true;refreshCapturePower()});powerMonitor.on('suspend',()=>{powerSuspended=true;refreshCapturePower()});powerMonitor.on('unlock-screen',()=>{screenLocked=false;refreshCapturePower()});powerMonitor.on('resume',()=>{powerSuspended=false;refreshCapturePower()});
-  poll=setInterval(tick,50);
+  poll=setInterval(()=>{try{tick()}catch(error){glass?.fail('Dock window update failed: '+(error instanceof Error?error.message:String(error)))}},50);
   const updateDisplay=()=>{layout();if(settings.theme==='liquid')glass?.retry();send()};screen.on('display-added',updateDisplay);screen.on('display-removed',updateDisplay);screen.on('display-metrics-changed',updateDisplay);
-  ipcMain.on('glass:feedback',(e,data)=>{authorized(e);if(e.sender!==dock.webContents||!data||!['ready','painted','failed'].includes(data.event))return;glass?.feedback(data.event,typeof data.message==='string'?data.message.slice(0,220):'',Number.isSafeInteger(data.generation)?data.generation:undefined)});
+  ipcMain.on('glass:feedback',(e,data)=>{authorized(e);if(e.sender!==dock.webContents||!data||!['ready','painted','failed'].includes(data.event))return;glass?.feedback(data.event,typeof data.message==='string'?data.message.slice(0,220):'',Number.isSafeInteger(data.generation)?data.generation:undefined,Number.isSafeInteger(data.revision)?data.revision:undefined)});
   ipcMain.on('glass:retry',e=>{authorized(e);glass?.stop();if(settings.theme==='liquid'){try{refreshCaptureExclusion()}catch{glass?.fail('Windows could not enable capture exclusion');return}}glass?.retry();send()});
   ipcMain.handle('state',e=>{authorized(e);return snapshot()});
   ipcMain.handle('command',(e,c:Command)=>{authorized(e);if(!c||!actions.has(c.action)||typeof c.id!=='string'||!media.sessions.some(s=>s.id===c.id))throw Error('Invalid media command');if(c.action==='seek'&&(!Number.isFinite(c.value)||Number(c.value)<0))throw Error('Invalid seek');bridge.send(c)});
-  ipcMain.handle('save',async(e,input)=>{authorized(e);const next=validate(input) as Settings;app.setLoginItemSettings({openAtLogin:next.startWithWindows,path:process.env.PORTABLE_EXECUTABLE_FILE||app.getPath('exe')});await fs.promises.mkdir(path.dirname(configPath),{recursive:true});await fs.promises.writeFile(configPath+'.tmp',JSON.stringify(next,null,2));await fs.promises.rename(configPath+'.tmp',configPath);settings=next;if(settings.automatic)selected='';layout();send()});
+  ipcMain.handle('save',async(e,input)=>{authorized(e);const next=validate(input) as Settings;app.setLoginItemSettings({openAtLogin:next.startWithWindows,path:process.env.PORTABLE_EXECUTABLE_FILE||app.getPath('exe')});await fs.promises.mkdir(path.dirname(configPath),{recursive:true});await fs.promises.writeFile(configPath+'.tmp',JSON.stringify(next,null,2));await fs.promises.rename(configPath+'.tmp',configPath);const themeChanged=settings.theme!==next.theme;settings=next;if(themeChanged)glass?.retry();if(settings.automatic)selected='';layout();send()});
   ipcMain.on('sound-settings',e=>{authorized(e);void shell.openExternal('ms-settings:sound').catch(()=>{})});
   ipcMain.on('interaction',(e,active)=>{authorized(e);interactingUntil=active===true?Date.now()+30000:0});
   ipcMain.on('settings',e=>{authorized(e);showSettings()});ipcMain.on('select',(e,id)=>{authorized(e);if(media.sessions.some(s=>s.id===id)){selected=id;send()}});ipcMain.on('quit',e=>{authorized(e);app.quit()});
  }).catch(e=>{console.error(e);app.quit()});
  app.on('window-all-closed',()=>{});
- app.on('before-quit',()=>{quitting=true;clearInterval(poll);glass?.stop();bridge?.stop();tray?.destroy()});
+ app.on('before-quit',()=>{quitting=true;clearTimeout(rendererRecovery);clearInterval(poll);glass?.stop();bridge?.stop();tray?.destroy()});
 }

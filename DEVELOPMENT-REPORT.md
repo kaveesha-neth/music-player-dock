@@ -1,6 +1,6 @@
 # Development report
 
-Current release: **1.2.5**. Earlier revision sections below are historical; the Liquid Glass section describes the current capture implementation.
+Current release: **1.2.6**. Earlier revision sections below are historical; the Liquid Glass section describes the current capture implementation.
 
 ## Implemented
 
@@ -139,3 +139,17 @@ The user confirmed 1.2.4 restores working desktop glass. Added independent Glass
 The shade follows the glass signed distance and fades inward over 18 logical pixels, with an intensity range from no shade to 40% black at the contour (14% at the default slider value). Edge warping now controls the actual normal-directed desktop sample displacement independently of subtle full-surface magnification. At the default, edge bend is around 29% stronger than the previous fixed relationship; zero removes this bend. Color separation remains separately adjustable. Settings renames the previous Lens strength control to Lens magnification to describe its remaining surface-wide effect accurately. The top-to-title black fade remains separate. Text and controls are not distorted or shaded by the backdrop shader.
 
 Renderer/shared and desktop TypeScript checks, production UI bundling, all 25 tests and compilation/linking of both GLSL ES 1.00 programs passed. Existing optics tests now verify independent edge displacement, an unaffected flat center, preference clamp/recovery and JSON roundtrip. New visual intensity and motion tuning still need the normal Windows desktop; no live screenshot or measured frame pacing was verified here. The working native capture/exclusion path is unchanged.
+
+## 1.2.6 Liquid Glass startup and hover recovery
+
+The user reported intermittent loss of hover reveal and a solid fallback when launching directly into saved Liquid Glass settings. The local diagnostic log repeatedly reported capture exclusion affinity 0x0. Code review identified multiple lifecycle weaknesses.
+
+Electron 41.2.1 SetIgnoreMouseEvents(false) removes WS_EX_LAYERED unless its persistent layered flag is set. Removing this native style can invalidate capture protection. The overlay now calls setOpacity(1) before configuring mouse pass-through, which uses Electron's supported SetLayered path while preserving full window alpha; input transitions also reapply content protection. This is based on the shipped Electron source, not a claimed observation of live Windows style changes here. Source: https://github.com/electron/electron/blob/v41.2.1/shell/browser/native_window_views.cc#L1194-L1218 . The native exclusion check remains mandatory.
+
+The capture controller previously treated forwarding pixels as a paint acknowledgement. If the first renderer draw was skipped or lost, subsequent unchanged native frames were never forwarded again, leaving the reveal gate waiting indefinitely. It now resends verified cached pixels after fresh unchanged responses until paint is acknowledged. Renderer feedback carries a revision so a disposed context cannot invalidate a newer session. A missing readiness/paint acknowledgement gets one rebuild after five seconds, then a visible fallback after another five seconds rather than staying hidden indefinitely. Capture/renderer failure can retry on the next deliberate hover. Theme changes explicitly invalidate old state.
+
+A late getState response could also overwrite a newer subscribed settings/capture snapshot; initial-state delivery now rejects that stale response. The dock keeps its renderer responsive while fully hidden without running capture or progress animations. Renderer crashes/unresponsiveness trigger throttled reloads, and the tray adds Recover dock for explicit recovery. IPC sends avoid unloaded/crashed renderer frames; global cursor polling continues after transient window/display exceptions.
+
+Verification: both TypeScript checks and production UI/main bundling passed. All 33 tests passed, including eight new cases for first-frame redelivery, bounded preparation, capture retry on hover, stale revision rejection, startup snapshot ordering and Electron-style layered-window/input transitions. Existing native rejection, protocol, optics, hover state-machine and layout tests remain passing. Shader compilation/link validation also passed. Native media/capture code is unchanged.
+
+A diagnostic launch using a separate workspace profile with Liquid Glass selected was attempted. Electron's GPU subprocess still exited with 0xC0000135 in this managed environment and the app aborted before usable desktop rendering; no successful live startup or hover verification is claimed. The window-style test is a model of Electron's implementation, not a Win32 integration test. Manual checks: cold-start with saved Liquid Glass plus fully hidden mode; repeated hover/interact/hide; missing first draw; switch themes after fallback; sleep/lock/resume; kill the capture helper; and use tray Recover dock. Check CPU/GPU idle behavior with background throttling disabled, since no measured resource budget is claimed.

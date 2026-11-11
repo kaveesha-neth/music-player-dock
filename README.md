@@ -94,6 +94,11 @@ To prevent the dock from capturing itself, Windows capture protection is enabled
 ## Good to know
 
 <details>
+  <summary><strong>What if the dock stops appearing?</strong></summary>
+  <p>Check the selected display and fullscreen-hiding setting, then use <strong>Recover dock</strong> from the system tray. This rebuilds the dock window's renderer without closing your media player. If Liquid Glass reports a capture problem, use <strong>Appearance &gt; Retry desktop glass</strong>. Switching styles or restarting in Black Notch should not be necessary.</p>
+</details>
+
+<details>
   <summary><strong>Why is my player missing, or a control unavailable?</strong></summary>
   <p>The player needs to publish a Windows media session. Some browser tabs, live streams and applications provide limited artwork, timeline information or playback actions. Start playback in the source app first; supported controls appear automatically.</p>
 </details>
