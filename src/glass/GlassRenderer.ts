@@ -1,5 +1,5 @@
 import {vertexShader,blurShader,refractionShader} from './shaders';
-import {textureMapping} from './optics.mjs';
+import {textureMapping,buttonLensGeometry} from './optics.mjs';
 import type {GlassFrame,Settings} from '../shared';
 
 export class GlassRenderer {
@@ -51,7 +51,11 @@ export class GlassRenderer {
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.vertical);
   const uniform=(name:string,value:number)=>gl.uniform1f(gl.getUniformLocation(this.refract,name),value);
   gl.uniform2f(gl.getUniformLocation(this.refract,'uSize'),logicalWidth,logicalHeight);gl.uniform4f(gl.getUniformLocation(this.refract,'uMapping'),mapping.x,mapping.y,mapping.width,mapping.height);
-  uniform('uRadius',Math.min(settings.liquidRadius,(logicalWidth-24)/2,(logicalHeight-12)/2));uniform('uStrength',settings.liquidRefraction/100);uniform('uDispersion',settings.liquidDispersion/100);uniform('uTint',settings.liquidTint/100);uniform('uEdgeShade',settings.liquidEdgeShade/100);uniform('uEdgeWarp',settings.liquidEdgeWarp/100);
+  uniform('uRadius',Math.min(settings.liquidRadius,(logicalWidth-24)/2,(logicalHeight-12)/2));uniform('uStrength',settings.liquidRefraction/100);uniform('uDispersion',settings.liquidDispersion/100);uniform('uTint',settings.liquidTint/100);uniform('uEdgeShade',settings.liquidEdgeShade/100);uniform('uEdgeWarp',settings.liquidEdgeWarp/100);uniform('uButtonWarp',settings.liquidButtonWarp/100);uniform('uBottomReflection',settings.liquidBottomReflection/100);uniform('uReflectionDepth',settings.liquidReflectionDepth/100);
+  const button=this.canvas.closest('.island')?.querySelector<HTMLElement>('[data-glass-lens=play]');
+  const circle=buttonLensGeometry(rect,{width:logicalWidth,height:logicalHeight},button?.getBoundingClientRect());
+  gl.uniform3f(gl.getUniformLocation(this.refract,'uButton'),circle.x,circle.y,circle.radius);
+  gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.source);gl.uniform1i(gl.getUniformLocation(this.refract,'uScene'),1);gl.activeTexture(gl.TEXTURE0);
   gl.drawArrays(gl.TRIANGLES,0,6);
   const error=gl.getError();if(error!==gl.NO_ERROR)throw Error(`Glass GPU draw failed (WebGL 0x${error.toString(16)})`);
   return true;

@@ -24,6 +24,7 @@ test('a revealed island has explicit visible motion for each theme with and with
   assert.ok(visibleSection?.includes('translateY(0) scale(1)')&&visibleSection.includes('opacity:1'),`hover state remains hidden for ${theme}/${active}`);
   assert.ok(hiddenSection?.includes('var(--window-height)')&&hiddenSection.includes('opacity:0'),`hidden island remains visible for ${theme}/${active}`);
   assert.ok(visible.includes('overlay is-open'));
+  assert.equal(visible.includes('data-glass-lens="play"'),theme==='liquid'&&active,'only Liquid Glass playback gets the secondary lens');
  }
 });
 test('black notch presents the selected device, playback state, and disabled unsupported actions',()=>{

@@ -22,9 +22,11 @@ export const refractionShader=`
 precision highp float;
 varying vec2 vUV;
 uniform sampler2D uSource;
+uniform sampler2D uScene;
+uniform vec3 uButton;
 uniform vec2 uSize;
 uniform vec4 uMapping;
-uniform float uRadius,uStrength,uDispersion,uTint,uEdgeShade,uEdgeWarp;
+uniform float uRadius,uStrength,uDispersion,uTint,uEdgeShade,uEdgeWarp,uButtonWarp,uBottomReflection,uReflectionDepth;
 // Bottom-rounded body with concave quadratic shoulders at the display edge.
 // CSS clips the exact shared SVG path; this distance guides the optical edge normal.
 float distanceToGlass(vec2 p){
@@ -41,7 +43,17 @@ float distanceToGlass(vec2 p){
 }
 vec2 mapped(vec2 p){return clamp(uMapping.xy+(p/uSize+.5)*uMapping.zw,vec2(.0005),vec2(.9995));}
 void main(){
- vec2 p=(vUV-.5)*uSize;float sd=distanceToGlass(p);
+ // A second circular lens refracts the dock beneath its crisp playback icon.
+ vec2 surfaceP=(vUV-.5)*uSize;
+ vec2 fromButton=surfaceP-uButton.xy;
+ float buttonRadius=max(uButton.z,1.);
+ float buttonDistance=length(fromButton),radial=buttonDistance/buttonRadius;
+ float buttonCover=(1.-smoothstep(1.-max(.02,1./buttonRadius),1.,radial))*step(1.,uButton.z);
+ float radialBand=smoothstep(.45,.98,radial);
+ float buttonBend=pow(radialBand,1.7)*buttonRadius*.38*uButtonWarp*buttonCover;
+ vec2 radialNormal=fromButton/max(buttonDistance,.001);
+ vec2 p=surfaceP-radialNormal*buttonBend-fromButton*.025*uButtonWarp*buttonCover;
+ float sd=distanceToGlass(p);
  // Exact shape antialiasing is supplied by the shared CSS path clip.
  float alpha=1.;
  float inside=max(0.,-sd),band=min(uRadius*1.6,min(uSize.x,uSize.y)*.25);
@@ -61,6 +73,16 @@ void main(){
  c=mix(c,vec3(.94,.97,1.),rim)+reflection;
  // A restrained black falloff follows the lens contour, fading into clear glass.
  c*=1.-uEdgeShade*.4*exp(-inside/18.);
+ // Mirror adjacent desktop pixels into the lower bevel (screen-space approximation).
+ float lowerFacing=smoothstep(.05,.7,n.y)*smoothstep(0.,uSize.y*.32,surfaceP.y);
+ float reflectionBand=mix(2.,min(16.,uRadius*.4),uReflectionDepth);
+ vec2 reflectedP=p+n*(2.*inside+mix(10.,34.,uReflectionDepth));
+ vec3 reflected=texture2D(uScene,mapped(reflectedP)).rgb;
+ reflected=mix(reflected,vec3(.028,.034,.045),uTint*.35);
+ float reflectedWeight=uBottomReflection*.2*exp(-inside/reflectionBand)*lowerFacing*(1.+.5*abs(n.x));
+ c=mix(c,reflected,clamp(reflectedWeight,0.,.28));
+ // A faint circular shade defines thickness without a bright rim arc.
+ c*=1.-buttonCover*uButtonWarp*(.012+.018*pow(clamp(radial,0.,1.),6.));
  gl_FragColor=vec4(clamp(c,0.,1.)*alpha,alpha);
 }
 `;

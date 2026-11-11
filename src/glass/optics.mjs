@@ -17,3 +17,21 @@ export function textureMapping(frame,rect,viewport){
  return {x:(frame.left+rect.left*sx)/frame.sourceWidth,y:(frame.top+rect.top*sy)/frame.sourceHeight,
  width:rect.width*sx/frame.sourceWidth,height:rect.height*sy/frame.sourceHeight};
 }
+
+export function buttonLensGeometry(glassRect,logicalSize,buttonRect){
+ if(!buttonRect||glassRect.width<=0||glassRect.height<=0||buttonRect.width<=0||buttonRect.height<=0)return {x:0,y:0,radius:0};
+ const sx=logicalSize.width/glassRect.width,sy=logicalSize.height/glassRect.height;
+ return {x:(buttonRect.left+buttonRect.width/2-glassRect.left)*sx-logicalSize.width/2,
+ y:(buttonRect.top+buttonRect.height/2-glassRect.top)*sy-logicalSize.height/2,
+ radius:Math.min(buttonRect.width*sx,buttonRect.height*sy)/2};
+}
+// CPU reference for the circular shader lens; the playback icon is a separate layer.
+export function circularLensOffset(x,y,button,strength){
+ const dx=x-button.x,dy=y-button.y,distance=Math.hypot(dx,dy),radius=button.radius;
+ if(radius<1||distance>=radius||strength===0)return {x,y};
+ const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t)};
+ const r=distance/radius,cover=1-smooth(1-Math.max(.02,1/radius),1,r);
+ const bend=Math.pow(smooth(.45,.98,r),1.7)*radius*.38*strength*cover;
+ return {x:x-dx/Math.max(distance,.001)*bend-dx*.025*strength*cover,
+ y:y-dy/Math.max(distance,.001)*bend-dy*.025*strength*cover};
+}
