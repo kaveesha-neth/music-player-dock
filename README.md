@@ -29,7 +29,7 @@ Control the music already playing in your favorite compatible apps, with a dock 
       <img src="docs/images/liquid-glass.webp" width="100%" alt="Reserved image space for the Liquid Glass dock">
       <h3>Liquid Glass</h3>
       <p>Live desktop blur, refracted edges and soft reflections. Curved bevels join the glass to the top of your screen, while a black fade and subtle border shading add depth.</p>
-      <p>Adjust the blur, edge warping, black edge shade, tint and color separation to find your finish.</p>
+      <p>Adjust the blur, edge warping, black edge shade, tint and color separation to find your finish. A second circular lens adds depth around play/pause, while subtle reflections follow the lower glass edge.</p>
     </td>
     <td width="50%" valign="top">
       <img src="docs/images/black-notch.webp" width="100%" alt="Reserved image space for the Black Notch dock">
@@ -62,7 +62,7 @@ The dock follows compatible Windows media sessions. Spotify, YouTube, YouTube Mu
 | Setting area | What you can customize |
 | --- | --- |
 | **Layout** | Width, height, inner spacing, corner radius and overall scale. Set artwork, title and play-button sizes; choose whether album names, time labels and optional controls appear. |
-| **Glass & appearance** | Liquid Glass blur, lens magnification, edge warping, black edge shade, tint and color separation. Choose a solid-white or silver-to-white progress bar and adjust its thickness. |
+| **Glass & appearance** | Liquid Glass blur, lens magnification, edge warping, black edge shade, play-button refraction, reflection intensity and depth, tint and color separation. Choose a solid-white or silver-to-white progress bar and adjust its thickness. |
 | **Behavior & motion** | Auto-hide, hide delay, trigger width and height, handle visibility, animations and reduced motion. |
 | **Music** | Follow the Windows media session, choose a preferred source or switch between available players. |
 | **System** | Preferred monitor, fullscreen hiding, start with Windows and access to Windows sound settings. |
